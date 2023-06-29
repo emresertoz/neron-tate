@@ -1,6 +1,6 @@
 Attach("archimedean_part.mag");
-Attach("non_archimedean_part.m");
-Attach("NTHeight.m");
+Attach("non_archimedean_part.mag");
+Attach("NTHeight.mag");
 P2<x,y,z> := ProjectiveSpace(Rationals(),2);
 C := Curve(P2, x^3*y-x^2*y^2-x^2*z^2-x*y^2*z+x*z^3+y^3*z);
 C_affine := AffinePatch(C, 1);

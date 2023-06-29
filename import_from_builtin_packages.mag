@@ -1,0 +1,16 @@
+libraryRoot := GetLibraryRoot();
+
+// Removing the '/libs' part from the end of libraryRoot
+pathWithoutLibs := Substring(libraryRoot, 1, #libraryRoot - #"/libs");
+
+// Appending '/package' to get to the package directory
+packageRoot := Sprintf("%o/package", pathWithoutLibs);
+
+packageName:="Geometry/RieSrf/infinitepoints.m";
+functionName:= "StrongApproximation";
+
+packagePath := Sprintf("%o%o", packageRoot, packageName);
+importStatement := Sprintf("import \"%o\" : %o;", packagePath, functionName);
+
+// Evaluates the import statement
+eval importStatement;
