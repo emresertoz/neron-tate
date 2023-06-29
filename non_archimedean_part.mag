@@ -24,8 +24,8 @@ end function;
 import "/usr/local/magma/package/Geometry/Crv/RegModel/main.m" : ancestors, lift_ideal;
 import "/usr/local/magma/package/Geometry/RieSrf/infinitepoints.m" : StrongApproximation;
 import "/usr/local/magma/package/Geometry/Crv/RegModel/interface.m" : regular_fibres_indices;
-import "local_module_length.m": local_module_length;
-import "corr_term.m": correction_divisor;
+import "local_module_length.mag": local_module_length;
+import "corr_term.mag": correction_divisor;
 
 function B2I(b)
 	if b then
