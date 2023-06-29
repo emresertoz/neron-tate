@@ -1,0 +1,85 @@
+import "archimedean_part.mag": BetterMoveAway;
+
+function BestMoveAway(D, E : P := 0)
+
+	// Find some base point to use
+	if (Type(P) eq RngIntElt) and (P eq 0) then
+		for pl in Decomposition(D) do
+			if GCD(pl[1], Numerator(E) + Denominator(E)) eq DivisorGroup(Curve(D))!0 then
+				P := pl[1];
+				break;
+			end if;
+		end for;
+		if (Type(P) eq RngIntElt) and (P eq 0) then
+			vprint Debug, 2: "No base point found. Trying with random point.";
+			P := RandomPlace(Curve(D));
+		end if;
+	end if;
+	P := Divisor(P);
+
+	n := 1;
+	while (true) do
+		Dred2num, r1 := Reduction(Numerator(n*D), P);
+		Dred2den, r2 := Reduction(Denominator(n*D), P);
+		if GCD(Dred2num + Dred2den + Abs(r1 - r2)*P, Numerator(E) + Denominator(E)) eq DivisorGroup(Curve(D))!0 then
+			return Dred2num - Dred2den + (r1 - r2)*P, n;
+		end if;
+		n +:= 1;
+	end while;
+
+end function;
+
+
+
+intrinsic NTHeightPairing(D1, D2, K, InfDiv : Precision := 50) -> FldReElt
+{
+  Compute the Neron-Tate height pairing between the classes of the divisors 
+  D1 and D2. Here K is a canonical divisor, used in the computation of the
+  archimedean contribution and InfDiv is the divisor at infinity.
+  Precision is the output precision.
+}
+	assert (IsEffective(InfDiv));
+	assert (GCD(Numerator(K) + Denominator(K), InfDiv) eq DivisorGroup(Curve(D1))!0);
+	E1, n1 := BestMoveAway(D1, InfDiv);
+	assert(IsLinearlyEquivalent(n1*D1, E1));
+	vprint Debug, 2: "D1 moved away from InfDiv";
+	E2, n2 := BestMoveAway(D2, InfDiv + Numerator(E1) + Denominator(E1));
+	assert(IsLinearlyEquivalent(n2*D2, E2));
+	vprint Debug, 2: "D2 moved away from D1 and InfDiv";
+        non_arch := NonArchimedeanPairing(E1, E2 : Precision := Precision);
+	//E1 := D1;	// This is just temporarily here because our MoveAway doesn't seem to work well for hyperelliptics.	
+      
+        C := Curve(E1);
+        C_affine := AffinePatch(C, 1);
+        AugmentPlaneCurve(C_affine : Precision := Precision);
+        arch := ArchimedeanNeronPairing(C_affine,E1,E2);
+
+        /* Old code
+	if (not(assigned(Curve(D1)`RiemannSurface)) or (Curve(D1)`RiemannSurface`Prec lt Precision)) then
+		C := Curve(D1);
+		_<X,Y> := PolynomialRing(Rationals(), 2);
+		f := Evaluate(Equation(C), [X, Y, 1]);
+		RS := RiemannSurface(f : Precision := Precision);	
+		C`RiemannSurface := RS;
+	end if;
+	RS := Curve(D1)`RiemannSurface;
+        time arch_rds := -ArchimedeanPairing(E1, E2, K : Precision := Precision, RS := RS);
+        */
+  
+	return (arch-non_arch) / (n1*n2), arch, non_arch;
+end intrinsic;
+
+intrinsic HeightPairing(D1::DivCrvElt, D2::DivCrvElt : Precision := 50) -> FldReElt
+{
+  Compute the Neron-Tate height pairing between the classes of the divisors 
+  D1 and D2.
+  Precision is the output precision.
+}
+    C := Curve(D1);
+    K := CanonicalDivisor(C);
+    InfDiv := DivisorAtInfinity(C);
+    K2 := BetterMoveAway(K, InfDiv);
+    assert(IsCanonical(K2));
+    vprint Debug, 1: "Start NTHeightPairing";
+    return NTHeightPairing(D1, D2, K2, InfDiv : Precision := Precision);
+end intrinsic;
