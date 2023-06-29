@@ -1,6 +1,7 @@
 Attach("archimedean_part.mag");
 Attach("non_archimedean_part.mag");
 Attach("NTHeight.mag");
+SetVerbose("Debug", 2);
 P2<x,y,z> := ProjectiveSpace(Rationals(),2);
 C := Curve(P2, x^3*y-x^2*y^2-x^2*z^2-x*y^2*z+x*z^3+y^3*z);
 C_affine := AffinePatch(C, 1);
@@ -10,5 +11,8 @@ E1 := Divisor(C![1,0,0]);
 E2 := Divisor(C![1,1,1]);
 D := D1 - D2;
 E := E1 - E2;
-ht, arch, non_arch := HeightPairing(E,D :Precision := 100);
+h1, arch, non_arch := HeightPairing(E,D :Precision := 100);
+//h2, arch, non_arch := HeightPairing(D,E :Precision := 100);
+//Doesn't work because D contains a Weierstrass point, and BestMoveAway
+//doesn't find a good multiple (probably because the rank is 0??)
 
