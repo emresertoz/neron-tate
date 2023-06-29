@@ -323,7 +323,7 @@ end intrinsic;
 
 // this might break
 
-import "/Users/emresertoz/magma/package/Geometry/RieSrf/infinitepoints.m" : StrongApproximation;
+import "/usr/local/magma/package/Geometry/RieSrf/infinitepoints.m" : StrongApproximation;
 
 // This doesn't work at all because import expexts a literal string as path name!
 /* libraryRoot := GetLibraryRoot(); */
