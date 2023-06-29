@@ -1,0 +1,22 @@
+Attach("archimedean_part.mag");
+Attach("non_archimedean_part.mag");
+Attach("NTHeight.mag");
+
+
+P2<x,y,z> := ProjectiveSpace(Rationals(),2);
+C := Curve(P2, x^2*y^2 - x*y^3 - x^3*z - 2*x^2*z^2 + y^2*z^2 - x*z^3 + y*z^3);
+D1 := Divisor(C![1,0,-1]);
+D2 := Divisor(C![1,1,-1]);
+E1 := Divisor(C![1,1,0]);
+E2 := Divisor(C![1,4,-3]);
+D := D1 - D2;
+E := 3*E1 - 3*E2;
+ht1 := HeightPairing(D,E);
+print "First height", ht1;
+
+F := Divisor(C![0,1,0]) - D2;
+G := 3*E2 - 3*Divisor(C![0,1,-1]);
+ht2 := HeightPairing(F,G);
+print "Second height", ht2;
+
+print "-414*ht1-1445*ht2=",-414*ht1-1445*ht2;
