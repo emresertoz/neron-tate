@@ -3,6 +3,7 @@
 ## Critical
 
 * Fix line 325 where StrongApproximation is imported from magma library using hardcoded path. This importing must be done dynamically. 
+  - This might be "impossible" todo dynamically. Rather I can write a make file that inserts that path dynamically when executed. 
 * non_archimedean_part.mag: This also imports with hardcoded paths, it must be dynamically done.
 * In AbelJacobiImageOfCanonicalDivisor, we move away the canonical divisor away from infinity. We should also move away from the singularities of the planar model, if any. 
   - Archimedean part of NT will work even if the planar model is singular, so we should continue to allow for that.

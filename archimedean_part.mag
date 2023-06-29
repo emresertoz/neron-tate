@@ -322,14 +322,19 @@ end intrinsic;
 
 
 // this might break
-libraryRoot := GetLibraryRoot();
-// Removing the '/libs' part from the end of libraryRoot
-pathWithoutLibs := Substring(libraryRoot, 1, #libraryRoot - #"/libs");
-// Appending '/package' to get to the package directory
-packageRoot := Sprintf("%o/package", pathWithoutLibs);
-packageName:="Geometry/RieSrf/infinitepoints.m";
-packagePath := Sprintf("%o%o", packageRoot, packageName);
-import packagePath : StrongApproximation;
+
+import "/Users/emresertoz/magma/package/Geometry/RieSrf/infinitepoints.m" : StrongApproximation;
+
+// This doesn't work at all because import expexts a literal string as path name!
+/* libraryRoot := GetLibraryRoot(); */
+/* // Removing the '/libs' part from the end of libraryRoot */
+/* pathWithoutLibs := Substring(libraryRoot, 1, #libraryRoot - #"/libs"); */
+/* // Appending '/package' to get to the package directory */
+/* packageRoot := Sprintf("%o/package", pathWithoutLibs); */
+/* packageName:="Geometry/RieSrf/infinitepoints.m"; */
+/* packagePath := Sprintf("%o%o", packageRoot, packageName); */
+/* import packagePath : StrongApproximation; */
+
 
 // Improved move away D from E
 function BetterMoveAway(D, E : P := 0)
