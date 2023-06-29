@@ -46,13 +46,13 @@ intrinsic NTHeightPairing(D1, D2, K, InfDiv : Precision := 50) -> FldReElt
 	E2, n2 := BestMoveAway(D2, InfDiv + Numerator(E1) + Denominator(E1));
 	assert(IsLinearlyEquivalent(n2*D2, E2));
 	vprint Debug, 2: "D2 moved away from D1 and InfDiv";
-        non_arch := NonArchimedeanPairing(E1, E2 : Precision := Precision);
-	//E1 := D1;	// This is just temporarily here because our MoveAway doesn't seem to work well for hyperelliptics.	
-      
-        C := Curve(E1);
-        C_affine := AffinePatch(C, 1);
-        AugmentPlaneCurve(C_affine : Precision := Precision);
-        arch := ArchimedeanNeronPairing(C_affine,E1,E2);
+  non_arch := NonArchimedeanPairing(E1, E2 : Precision := Precision);
+  //E1 := D1;	// This is just temporarily here because our MoveAway doesn't seem to work well for hyperelliptics.	
+
+  C := Curve(E1);
+  C_affine := AffinePatch(C, 1);
+  AugmentPlaneCurve(C_affine : Precision := Precision);
+  arch := ArchimedeanNeronPairing(C_affine,E1,E2);
 
         /* Old code
 	if (not(assigned(Curve(D1)`RiemannSurface)) or (Curve(D1)`RiemannSurface`Prec lt Precision)) then
