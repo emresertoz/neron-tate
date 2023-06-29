@@ -1,12 +1,17 @@
 import "archimedean_part.mag": BetterMoveAway;
 
-function BestMoveAway(D, E : P := 0)
+function BestMoveAway(D, E : P := 0, Weierstrass := false)
 
 	// Find some base point to use
+        // TODO: Weierstrass and P is Weierstrass
 	if (Type(P) eq RngIntElt) and (P eq 0) then
-		for pl in Decomposition(D) do
-			if GCD(pl[1], Numerator(E) + Denominator(E)) eq DivisorGroup(Curve(D))!0 then
-				P := pl[1];
+                supp := Support(D);
+                if Weierstrass then 
+                        supp := [pl : pl in supp | Degree(pl) gt 1 or not IsWeierstrassPlace(pl)];
+                end if;
+		for pl in supp do
+			if GCD(pl, Numerator(E) + Denominator(E)) eq DivisorGroup(Curve(D))!0 then
+				P := pl;
 				break;
 			end if;
 		end for;
@@ -17,15 +22,22 @@ function BestMoveAway(D, E : P := 0)
 	end if;
 	P := Divisor(P);
 
-	n := 1;
-	while (true) do
+	n := 0;
+        done := false;
+        repeat
+		n +:= 1;
 		Dred2num, r1 := Reduction(Numerator(n*D), P);
 		Dred2den, r2 := Reduction(Denominator(n*D), P);
 		if GCD(Dred2num + Dred2den + Abs(r1 - r2)*P, Numerator(E) + Denominator(E)) eq DivisorGroup(Curve(D))!0 then
-			return Dred2num - Dred2den + (r1 - r2)*P, n;
+                        done := true;
+                        if Weierstrass then 
+                                if &or[IsWeierstrassPlace(Q) : Q in Support(Dred2num + Dred2den) | Degree(Q) eq 1] then
+                                        done := false;
+                                end if;
+                        end if;
 		end if;
-		n +:= 1;
-	end while;
+      until done;
+      return Dred2num - Dred2den + (r1 - r2)*P, n;
 
 end function;
 
@@ -40,10 +52,12 @@ intrinsic NTHeightPairing(D1, D2, K, InfDiv : Precision := 50) -> FldReElt
 }
 	assert (IsEffective(InfDiv));
 	assert (GCD(Numerator(K) + Denominator(K), InfDiv) eq DivisorGroup(Curve(D1))!0);
+	//E1, n1 := BestMoveAway(D1, InfDiv : Weierstrass);
 	E1, n1 := BestMoveAway(D1, InfDiv);
 	assert(IsLinearlyEquivalent(n1*D1, E1));
 	vprint Debug, 2: "D1 moved away from InfDiv";
 	E2, n2 := BestMoveAway(D2, InfDiv + Numerator(E1) + Denominator(E1));
+	//E2, n2 := BestMoveAway(D2, Numerator(E1) + Denominator(E1));
 	assert(IsLinearlyEquivalent(n2*D2, E2));
 	vprint Debug, 2: "D2 moved away from D1 and InfDiv";
   non_arch := NonArchimedeanPairing(E1, E2 : Precision := Precision);
@@ -75,11 +89,25 @@ intrinsic HeightPairing(D1::DivCrvElt, D2::DivCrvElt : Precision := 50) -> FldRe
   D1 and D2.
   Precision is the output precision.
 }
+    require Degree(D1) eq 0 and Degree(D2) eq 0: 
+                    "The divisors need to have degree 0";
     C := Curve(D1);
+    require Type(BaseRing(C)) eq FldRat:
+                    "Only implemented over the rationals";
     K := CanonicalDivisor(C);
     InfDiv := DivisorAtInfinity(C);
     K2 := BetterMoveAway(K, InfDiv);
     assert(IsCanonical(K2));
     vprint Debug, 1: "Start NTHeightPairing";
     return NTHeightPairing(D1, D2, K2, InfDiv : Precision := Precision);
+end intrinsic;
+
+intrinsic Height(D::DivCrvElt : Precision := 50) -> FldReElt
+{
+  Compute the Neron-Tate height of the classes of the divisor D.
+  Precision is the output precision.
+}
+    
+    return HeightPairing(D, D : Precision := Precision);
+
 end intrinsic;
