@@ -3,7 +3,7 @@ declare attributes Crv: RiemannSurface, AbelJacobiMap, StandardThetaCharacterist
 declare verbose Debug, 3; 
 // verbosity level 1: For listing errors in StandardThetaCharacteristic, also serves as a progress report
 // verbosity level 2: For progress report on vBHM_Formula (main function)
-// verbosity level 3: For other
+// verbosity level 3: For other // TODO This level is unused at the moment
 
 // TODO maybe you should create a new category "Augmented Plane Curve" and work with that instead of CrvPln which you ask for
 // on the other hand, why not work with RieSrf which has all the attributes you want?!
@@ -323,7 +323,6 @@ end intrinsic;
 
 // this might break
 import "/Users/emresertoz/magma/package/Geometry/RieSrf/infinitepoints.m" : StrongApproximation;
-StrongApproximationSimple := StrongApproximation;
 
 // Improved move away D from E
 function BetterMoveAway(D, E : P := 0)
