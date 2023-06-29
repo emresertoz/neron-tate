@@ -1,0 +1,19 @@
+Attach("archimedean_part.mag");
+SetVerbose("Debug",2); // decrease to 1 if you don't want to see the evaluations from theta characteristic search
+
+S<X,Y>:=PolynomialRing(Rationals(),2);
+F:=5*X^3 + X^2*Y^3 + 2*X^2*Y^2 - Y^3 + Y;
+C:=Curve(Spec(S),F);
+//bad primes in {5,31949591}
+
+h1:=Divisor(C,Ideal(X+2));
+h2:=Divisor(C,Ideal(X-2));
+v1:=Divisor(C,Ideal(Y+1));
+v2:=Divisor(C,Ideal(Y));
+
+D1:=h1-v1; 
+D2:=h2-v2;
+//bad primes in { 2, 3, 5, 11 }
+
+time AugmentPlaneCurve(C : Precision:=50);
+time ArchimedeanNeronPairing(C,D1,D2);

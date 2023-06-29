@@ -1,0 +1,351 @@
+declare attributes Crv: RiemannSurface, AbelJacobiMap, StandardThetaCharacteristic;
+
+declare verbose Debug, 3; 
+// verbosity level 1: For listing errors in StandardThetaCharacteristic, also serves as a progress report
+// verbosity level 2: For progress report on vBHM_Formula (main function)
+// verbosity level 3: For other
+
+// TODO maybe you should create a new category "Augmented Plane Curve" and work with that instead of CrvPln which you ask for
+// on the other hand, why not work with RieSrf which has all the attributes you want?!
+
+intrinsic AugmentPlaneCurve(C::CrvPln : Precision:=50)
+{
+  Takes a plane curve (affine or projective) and returns a copy of the curve with the RiemannSurface and AbelJacobiMap attributes populated using the RieSrf package. If the curve is projective, we use the affine part obtained by setting the third coordinate to 1.
+}
+  if IsAffine(C) then
+    f:=Equation(C);
+  else
+    f:=Equation(AffinePatch(C,1)); // patch #1 sets last coordinate to 1
+  end if;
+  // RiemannSurface
+  RS:=RiemannSurface(f : Precision:=Precision); // takes time
+  // AbelJacobiMap
+  V:=VectorSpace(ComplexField(Precision),RS`Genus); // Complex vector space of dimension g, universal cover of Jacobian
+  function AJ(point)
+    pt:=point;
+    if not ISA(Type(point),RieSrfPt) then
+      // coerce the point to the RS
+      pt:=RS!point; 
+    end if;
+    return V!Eltseq(AbelJacobi( pt : Reduction := "Complex" ));
+  end function;
+  C`RiemannSurface:=RS;
+  C`AbelJacobiMap:=AJ;
+  if assigned C`StandardThetaCharacteristic then
+    // if the precision is increased, this has to be computed anew.
+    // in principle, we can remember the position of the STC and make it much an instant to recompute.
+    delete C`StandardThetaCharacteristic;
+  end if;
+end intrinsic;
+
+// Random point on curve 
+intrinsic RandomPlace(C::CrvPln : maxint := 1000) -> PlcCrvElt
+{
+  Given a plane curve C, generates a random x-coordinate x0 in [-maxint,maxint], chooses a random place on C (over base field) lying over x0 and returns it.
+}
+	x0 := Random(-maxint,maxint);
+	F := FunctionField(C);
+	return Random(Support(Numerator(Divisor(F.1 - x0))));
+end intrinsic;
+
+
+intrinsic AllRepresentativePoints(place::PlcCrvElt : Precision:=50) -> SeqEnum
+{
+ Takes a place of a projective curve and returns all conjugates of the representative points as being embedded in complex field of specified precision. 
+}
+  coords:=Eltseq(RepresentativePoint(place));
+  // Note from handbook: the conjugates are given in a fixed ordering which depends only on (the defining polynomials of) the field or order. 
+  if coords[3] ne 0 then 
+    xcoords:=Conjugates(coords[1]/coords[3]:Precision:=Precision);
+    ycoords:=Conjugates(coords[2]/coords[3]:Precision:=Precision);
+    points:=[];
+    for ii in [1..#xcoords] do
+      Append(~points,[xcoords[ii],ycoords[ii],1]);
+    end for;
+    return points;
+  elif coords[2] ne 0 then
+    xcoords:=Conjugates(coords[1]/coords[2]:Precision:=Precision);
+    points:=[];
+    for ii in [1..#xcoords] do
+      Append(~points,[xcoords[ii],1,0]);
+    end for;
+    return points;
+  else
+    return [ [ComplexField(Precision) | 1,0,0] ];
+  end if;
+end intrinsic;
+
+
+intrinsic RandomPointOnThetaDivisor(C::CrvPln) -> ModTupFldElt 
+{
+ Generate a random set of g-1 points on C and sum their images under the AbelJacobi map. 
+ The curve C is expected to be augmented with a RiemannSurface and an internal AbelJacobi map. 
+}
+  RS:=C`RiemannSurface; 
+  g:=RS`Genus;
+  AJ:=C`AbelJacobiMap; 
+  assert g gt 0;
+  thetaPoint:=AJ(RS`BasePoint); // this is 0
+  for ii in [1..g-1] do
+    point:=Random(AllRepresentativePoints(RandomPlace(C) : Precision:=RS`Prec));
+    thetaPoint +:= AJ(point); 
+  end for;
+  return thetaPoint;
+end intrinsic;
+
+
+intrinsic AbelJacobiImageOfDivisor(C::CrvPln,D::DivCrvElt) -> ModTupFldElt
+{
+  Takes an augemented plane curve C and a divisor on C, returns the image of the divisor under the AbelJacobi map of the curve.
+}
+  // C:=Curve(D); // this can lose the augmentation, so I ask for the augmented curve to be given as input
+  RS:=C`RiemannSurface;
+  AJ:=C`AbelJacobiMap;
+  places,mults:=Support(D);
+  image:=AJ(RS`BasePoint); // 0
+  for ii in [1..#places] do
+    for point in AllRepresentativePoints(places[ii] : Precision:=RS`Prec) do
+      image +:= mults[ii]*AJ(point);
+    end for;
+  end for;
+  return image;
+end intrinsic
+
+
+intrinsic TwoTorsionPointsInJacobian(C::CrvPln) -> SeqEnum
+{
+  Takes an augmented curve C and returns all the two torsion points on the Jacobian of C.
+}
+  B:=SmallPeriodMatrix(C`RiemannSurface);
+  V:=Parent(B[1]); // Complex vector space of dimension g, universal cover of our torus
+  g:=Dimension(V); 
+  // Constructing the two-torsion
+  T1:=[1/2*CharacteristicVector(V,S) : S in Subsets({1..g})]; 
+  T2:=[tt*B : tt in T1];
+  // Adding the two sets of lattice torsion coordinates
+  T:=[tt[1]+tt[2] : tt in CartesianProduct(T1,T2)];
+  return T;
+end intrinsic;
+
+intrinsic HalvesOfAPointInJacobian(C::CrvPln,v::ModTupFldElt) -> SeqEnum
+{
+  Takes an augmented curve C and vector v in a complex g-dimensional vector space (viewed as the universal cover of Jacobian). Returns all vectors w such that 2*w and v map to the same point in the Jacobian.
+}
+  
+  T:=TwoTorsionPointsInJacobian(C);
+  return [1/2*v + tt : tt in T];
+end intrinsic;
+
+intrinsic RiemannTheta(C::CrvPln : lowPrecision:=0) -> UserProgram
+{
+  Given an augmented curve, return the standard Riemann theta function corresponding to the zero character. The function takes inputs from a g-dimensional complex vector space (row vectors). You can lower the operating precision with lowPrecision, otherwise defaults to the precision of the RS of C. 
+}
+  RS:=C`RiemannSurface;
+  B:=SmallPeriodMatrix(RS);
+  g:=RS`Genus;
+  zeroChar:=ZeroMatrix(Integers(),2*g,1); // The character for standard theta function
+  /// lower precision if asked to
+  if lowPrecision gt RS`Prec or lowPrecision lt 0 then
+    error "lowPrecision has to be between 0 and the precision of the Riemann surface of C";
+  elif lowPrecision gt 0 then
+    B:=ChangeRing(B,ComplexField(lowPrecision));
+  end if;
+  return func< pt | Theta(zeroChar, Transpose(Matrix(pt)) , B)>;
+end intrinsic;
+
+function ImMat(M) 
+// Compute the matrix of imaginary components of the complex matrix M. But returns it as a complex matrix.
+  return Parent(M)!Matrix(Nrows(M),Ncols(M),[ Imaginary(m) : m in Eltseq(M)]);
+end function;
+
+intrinsic NormalizedRiemannTheta(C::CrvPln : lowPrecision:=0) -> UserProgram
+{
+  Given an augmented curve, returns the normalized Riemann theta function (input space is complex g-dimensional row vectors). The normalization is biperiodic (hence the norm of the value is standardized) but not holomorphic. You can lower the operating precision with lowPrecision, otherwise defaults to the precision of the RS of C. 
+}
+  // for explanation on the NormalizedTheta below
+  // see "An upper bound for the theta function" by Pascal Autissier for bounds on the norm of the normalized theta function.
+  // https://www.math.u-bordeaux.fr/~pautissi/Theta2.pdf
+  // the absolute value of normalized theta is less than g^(g/2) at any point.
+  theta:=RiemannTheta(C : lowPrecision:=lowPrecision);
+  RS:=C`RiemannSurface;
+  g:=RS`Genus;
+  B:=SmallPeriodMatrix(RS);
+  CC:=ComplexField(RS`Prec);
+  if 0 lt lowPrecision and lowPrecision lt RS`Prec then
+    // RiemannTheta checks that lowPrecision is in this range if not 0
+    prec:=lowPrecision; 
+    CC:=ComplexField(prec);
+    B:=ChangeRing(B,CC);
+  end if;
+  pi:=Abs(Pi(CC)); // casting Pi to reals
+  H:=ImMat(B);
+  Hinv:=Inverse(H); 
+  function NormalizedTheta(pt) // pt is a g dimensional vector
+    imagPt:=ChangeRing(ImMat(Matrix(pt)),CC); // to lower precision if necessary
+    norm:=Abs((imagPt*Hinv*Transpose(imagPt))[1,1]); // H and Hinv are positive definite, so Abs just changes the ground field to reals
+    // it is also natural to scale by det(H)^(1/4) but omitting it means the absolute value is bounded by g^(g/2) as opposed to det(H)^(1/4)*g^(g/2). So we choose to omit this factor.
+    return Exp(-pi*norm)*Abs(theta(pt));
+  end function;
+  return NormalizedTheta;
+end intrinsic; 
+
+intrinsic DivisorAtInfinity(C::CrvPln) -> DivCrvElt
+{ Returns the points at infinity of C as a reduced divisor. }
+  F:=FunctionField(C);
+  return &+Support(Denominator(Divisor(F.1)) + Denominator(Divisor(F.2)));
+end intrinsic;
+
+
+forward BetterMoveAway; // TODO careful with this
+intrinsic AbelJacobiImageOfCanonicalDivisor(C::CrvPln) -> ModTupFldElt
+{
+  Returns a complex g-dimensional row vector representing the image of the canonical point of the Abel Jacobi map associated to the given augmented curve.
+}
+    K := CanonicalDivisor(C);
+    InfDiv := DivisorAtInfinity(C);
+    // move divisor away from infinity
+    K2 := BetterMoveAway(K, InfDiv); // TODO careful
+    // You may want to move K away from the discriminant locus so that the AJ does not break
+    return AbelJacobiImageOfDivisor(C,K2);
+end intrinsic;
+
+intrinsic ThetaCharacteristics(C::CrvPln) -> SeqEnum
+{
+  Returns all points on the Jacobian of (augmented) C whose square is the canonical divisor. We work with the universal cover of the Jacobian and represent points numerically with respect to a base point.
+}
+  K:=AbelJacobiImageOfCanonicalDivisor(C); 
+  return HalvesOfAPointInJacobian(C,K); // all theta characteristics (halves of canonical divisor)
+end intrinsic;
+
+
+intrinsic StandardThetaCharacteristic(C::CrvPln : lowPrecision:=10) -> ModTupFldElt
+{
+  Given an augmented curve, compute the Abel Jacobi image of the theta characteristic W such that the translate of the theta divisor by W is the zero locus of the standard Riemann theta function. This is done by trial-and-error, using low precision, and the normalized Riemann theta function. 
+}
+  if assigned C`StandardThetaCharacteristic then
+    return C`StandardThetaCharacteristic;
+  end if;
+  print "Looking for the standard theta characteristic by trial and error, this can take some time...";
+  tolerance:=10^-(lowPrecision/2); 
+  normalizedTheta:=NormalizedRiemannTheta(C : lowPrecision:=lowPrecision);
+  ptOnTheta:=RandomPointOnThetaDivisor(C);
+  errs:=[]; // used only for debugging
+  for thetaChar in ThetaCharacteristics(C) do
+    err:=normalizedTheta(ptOnTheta-thetaChar); 
+    vprint Debug, 2: err;
+    Append(~errs,RealField(1)!err);
+    if (err lt tolerance) then
+      vprint Debug, 2: Sort(errs);
+      C`StandardThetaCharacteristic:=thetaChar;
+      print "Found the standard theta characteristic.";
+      return thetaChar; // my sign for thetaChar is opposite that of vBHM
+    end if;
+  end for;
+  error "Could not find the standard characteristic. Try again with different precision."; 
+end intrinsic;
+
+intrinsic DivisorToSumOfPoints(D::DivCrvElt : Precision:=50) -> SeqEnum
+{
+  Given an effective divisor D on a curve in a plane, write D as a sum of complex points on the plane. We return a sequence of points, each point is repeated according to its multiplicity in D. 
+}
+  require ISA(Type(Curve(D)),CrvPln): "The ambient curve has to be a plane curve.";
+  require IsEffective(D): "D has to be effective";
+  places,mults:=Support(D);
+  points:=[]; ptMults:=[];
+  for ii in [1..#places] do
+    // add each point in places[ii] exactly mults[ii] times
+    points cat:= &cat[ AllRepresentativePoints(places[ii] : Precision:=Precision) : jj in [1..mults[ii]]]; 
+  end for;
+  return points;
+end intrinsic;
+
+intrinsic SplitIntoPairsOfPoints(D::DivCrvElt : Precision:=50) -> SeqEnum
+{ 
+  For a degree 0 divisor D on a plane curve, writes it as a sum of difference of points p-q, and returns the sequence of p's and q's as points on the complex plane. Point pairs may be duplicated in the sequence according to the multiplicity of their occurance.
+}
+  require ISA(Type(Curve(D)),CrvPln): "The ambient curve has to be a plane curve.";
+  require Degree(D) eq 0: "D has to be of degree 0.";
+  pts1:=DivisorToSumOfPoints(Numerator(D) : Precision:=Precision);
+  pts2:=DivisorToSumOfPoints(Denominator(D) : Precision:=Precision);
+  // sanity check
+  assert #pts1 eq #pts2;
+  return [[pts1[ii],pts2[ii]] : ii in [1..#pts1]];
+end intrinsic;
+
+intrinsic ArchimedeanNeronPairing(C::CrvPln,D::DivCrvElt,E::DivCrvElt) -> FldComElt
+{
+  The support of D and E is assumed to be disjoint. We apply the van Bommel, Holmes, Mueller formula to compute the Archimedean height using theta functions, see Proposition 3.1 in  arXiv:1809.06791v2. The formula is modified using an observation of de Jong and his formula for Green's functions from arXiv:math/0312357. The current formula will work if no point of D is supported on a Weierstrass point of C.
+}
+  require IsEmpty(Set(Support(D)) meet Set(Support(E))): "D and E must have disjoint supports.";
+  require assigned C`RiemannSurface: "Call AugmentPlaneCurve(C) to augment C with Riemann surface data and then call this function again.";
+  RS:=C`RiemannSurface;
+  Precision:=RS`Prec;
+  AJ:=C`AbelJacobiMap;
+  g:=Genus(RS);
+  // theta:=RiemannTheta(C); 
+  ntheta:=NormalizedRiemannTheta(C); 
+  W:=StandardThetaCharacteristic(C); 
+  B:=SmallPeriodMatrix(RS);
+  CC:=ComplexField(RS`Prec);
+  Hinv:=Inverse(ImMat(B));
+  total:=0;
+  print "Computing the point decomposition of divisors.";
+  PointPairs1:=SplitIntoPairsOfPoints(D : Precision:=Precision);
+  PointPairs2:=SplitIntoPairsOfPoints(E : Precision:=Precision);
+  print "Computing the Archimedean pairing of point pairs.";
+  cnt:=0; max:=#PointPairs1*#PointPairs2; // for vprint
+  for PointPair1 in PointPairs1 do 
+    for PointPair2 in PointPairs2 do 
+      cnt+:=1; 
+      vprint Debug, 1: "Computing pair "*Sprint(cnt)*" out of "*Sprint(max);
+      p,q:=Explode(PointPair1);
+      r,s:=Explode(PointPair2);
+      P:=AJ(p); Q:=AJ(q); R:=AJ(r); S:=AJ(s);
+      A11:=ntheta(g*P-R-W); // my sign for W is opposite that of vBHM
+      A12:=ntheta(g*Q-S-W); // using matrix notation for the ordering: (A11*A12)/(A21*A22)
+      A21:=ntheta(g*P-S-W);
+      A22:=ntheta(g*Q-R-W);
+      if &or[ A lt 10^-(Precision/2) : A in [A11,A12,A21,A22]] then
+        error "D might be supported on a Weierstrass point. If you doubt this, try increasing the precision. Otherwise, try swapping D and E.";
+      end if;
+      pairing:=1/g*Log((A11*A12)/(A21*A22)); // Neron pairing
+      total +:= pairing; // sum up the 
+    end for;
+  end for;
+  return total;
+end intrinsic;
+
+
+/////////////////////////////////////////////
+/////////// Taken verbatim from code by vBHM
+/////////////////////////////////////////////
+
+
+// this might break
+import "/Users/emresertoz/magma/package/Geometry/RieSrf/infinitepoints.m" : StrongApproximation;
+StrongApproximationSimple := StrongApproximation;
+
+// Improved move away D from E
+function BetterMoveAway(D, E : P := 0)
+	// Find some base point to use
+	if (Type(P) eq RngIntElt) and (P eq 0) then
+		for pl in Decomposition(D) do
+			if GCD(pl[1], Numerator(E) + Denominator(E)) eq (Parent(E)!0) then
+				P := pl[1];
+				break;
+			end if;
+		end for;
+		if (Type(P) eq RngIntElt) and (P eq 0) then
+			error "No base point found!";
+		end if;
+	end if;
+	L := [FunctionFieldPlace(Pl[1]) : Pl in Decomposition(E)];
+	M := [Pl[1] : Pl in Decomposition(E)];
+	P := FunctionFieldPlace(P);
+	for i in [1..#L] do
+		f := StrongApproximation(P, i, L);
+		D +:= Valuation(D,M[i]) * CurveDivisor(Curve(D), Divisor(f));
+	end for;
+	return D, 1;
+end function;
+

@@ -1,0 +1,15 @@
+.*.swp
+*.fdb_latexmk
+.*.un~
+*.aux
+*.bbl
+*.bcf
+*.toc
+*.blg
+*.fls
+*.log
+*.out
+*.pdf
+*.run.xml
+.DS_Store
+*.sig
