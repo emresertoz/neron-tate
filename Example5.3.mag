@@ -1,0 +1,44 @@
+
+// Compute the regulator of the Jacobian of the split Cartan curve 
+// of level 13, up to an integral square.
+
+Attach("archimedean_part.mag");
+Attach("non_archimedean_part.mag");
+Attach("NTHeight.mag");
+import "/usr/local/magma/package/Geometry/RieSrf/infinitepoints.m" : StrongApproximation;
+P2<X,Y,Z> := ProjectiveSpace(Rationals(),2);
+C := Curve(P2, (-Y - Z)*X^3 + (2*Y^2 + Z*Y)*X^2 + (-Y^3 + Z*Y^2 - 2*Z^2*Y + Z^3 )*X + (2*Z^2*Y^2-3*Z^3*Y) );
+CP := [C!P : P in [[0 , 1 , 0], [0 , 0 , 1], [-1 , 0 , 1], [1 , 0 , 0], [1 , 1 , 0], [0 , 3/2 , 1], [1 , 0 , 1]]]; 
+GeneratorsList := [Divisor(CP[1]) - Divisor(CP[4]), Divisor(CP[2]) - Divisor(CP[4]), Divisor(CP[3]) - Divisor(CP[4])];
+
+
+PairingMatrix := [[RealField(50)!0 : a in GeneratorsList] : b in GeneratorsList];
+for i,j in [1..3] do
+	print i,j;
+	PairingMatrix[i,j] := HeightPairing(GeneratorsList[i], GeneratorsList[j] : Precision := 50);
+end for;
+
+print "Regulator:", Determinant(Matrix(PairingMatrix));
+print "Individual heights:", PairingMatrix;
+
+"\n\nNow check if this agrees with the regulator we get using a specific
+ auxiliary canonical divisor.\n\n";
+
+PairingMatrix2 := [[RealField(50)!0 : a in GeneratorsList] : b in GeneratorsList];
+
+InfDiv := DivisorAtInfinity(C);
+_<xC,yC> := FunctionField(C);
+P0 := FunctionFieldPlace(Place(C![1,0,1]));
+L := [FunctionFieldPlace(Place(C!x)) : x in [[1,0,0], [0,1,0]]];
+f := StrongApproximation(P0, 1, L);
+dy := Evaluate(Derivative(Equation(C), Y), [xC, yC, 1]);
+K2 := Divisor(yC*Differential(xC) / dy)+ (CurveDivisor(C, Divisor(f)));
+
+// This one does not work with our NTHP function. The canonical divisor gets moved to some nast
+
+for i,j in [1..3] do
+	print i,j;
+	PairingMatrix2[i,j] := NTHeightPairing(GeneratorsList[i], GeneratorsList[j], K2, InfDiv);
+end for;
+
+print Matrix(PairingMatrix) - Matrix(PairingMatrix2);
