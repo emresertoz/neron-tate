@@ -1,43 +1,64 @@
-import "archimedean_part.mag": BetterMoveAway;
+import "archimedean_part.mag": MoveAway;
 
-function BestMoveAway(D, E : P := 0, Weierstrass := false)
+function is_weier(P)
+  if Degree(P) gt 1 then 
+    return false;
+  end if;
+  return IsWeierstrassPlace(P);
+end function;
 
-	// Find some base point to use
-        // TODO: Weierstrass and P is Weierstrass
-	if (Type(P) eq RngIntElt) and (P eq 0) then
-                supp := Support(D);
-                if Weierstrass then 
-                        supp := [pl : pl in supp | Degree(pl) gt 1 or not IsWeierstrassPlace(pl)];
-                end if;
-		for pl in supp do
-			if GCD(pl, Numerator(E) + Denominator(E)) eq DivisorGroup(Curve(D))!0 then
-				P := pl;
-				break;
-			end if;
-		end for;
-		if (Type(P) eq RngIntElt) and (P eq 0) then
-			vprint Debug, 2: "No base point found. Trying with random point.";
-			P := RandomPlace(Curve(D));
-		end if;
-	end if;
-	P := Divisor(P);
+function MoveAwayMultiple(D, E : bP := 0, Weierstrass := false, MultipleBound := 20)
 
-	n := 0;
-        done := false;
-        repeat
-		n +:= 1;
-		Dred2num, r1 := Reduction(Numerator(n*D), P);
-		Dred2den, r2 := Reduction(Denominator(n*D), P);
-		if GCD(Dred2num + Dred2den + Abs(r1 - r2)*P, Numerator(E) + Denominator(E)) eq DivisorGroup(Curve(D))!0 then
-                        done := true;
-                        if Weierstrass then 
-                                if &or[IsWeierstrassPlace(Q) : Q in Support(Dred2num + Dred2den) | Degree(Q) eq 1] then
-                                        done := false;
-                                end if;
-                        end if;
-		end if;
-      until done;
-      return Dred2num - Dred2den + (r1 - r2)*P, n;
+  // Find a divisor D' and an integer n such that D' is linearly equivalent   // to n*D and has support disjoint from E.
+  // bP is a base point. If Weierstrass is true, also move away from the 
+  // Weierstrass locus of the curve.
+  //
+  if (Type(bP) eq RngIntElt) and (bP eq 0) then
+    supp := Support(D);
+    if Weierstrass then 
+      supp := [pl : pl in supp | not is_weier(pl)];
+    end if;
+    for pl in supp do
+      if GCD(pl, Numerator(E) + Denominator(E)) eq DivisorGroup(Curve(D))!0 then
+        bP := pl;
+        break;
+      end if;
+    end for;
+    if (Type(bP) eq RngIntElt) and (bP eq 0) then
+      vprint Debug, 2: "No base point found. Trying with random point.";
+      bP := RandomPlace(Curve(D));
+    end if;
+  end if;
+  if Weierstrass and is_weier(bP) then
+    vprint Debug, 2: "No non-Weierstrass base point found. Trying with random point.";
+    repeat 
+      bP := RandomPlace(Curve(D));
+    until not is_weier(bP);
+  end if;
+
+  bP := Divisor(bP);
+
+  n := 0;
+  done := false;
+  repeat
+    n +:= 1;
+    if n gt MultipleBound then
+      error "Can't find a good multiple of D";
+    end if;
+    Dred2num, r1 := Reduction(Numerator(n*D), bP);
+    Dred2den, r2 := Reduction(Denominator(n*D), bP);
+    if GCD(Dred2num + Dred2den + Abs(r1 - r2)*bP, Numerator(E) 
+                        + Denominator(E)) eq DivisorGroup(Curve(D))!0 then
+      done := true;
+      if Weierstrass then 
+        if &or[is_weier(Q) : Q in Support(Dred2num + Dred2den)
+                                                     | Degree(Q) eq 1] then
+          done := false;
+        end if;
+      end if;
+    end if;
+  until done;
+  return Dred2num - Dred2den + (r1 - r2)*bP, n;
 
 end function;
 
@@ -50,18 +71,28 @@ intrinsic NTHeightPairing(D1, D2, K, InfDiv : Precision := 50) -> FldReElt
   archimedean contribution and InfDiv is the divisor at infinity.
   Precision is the output precision.
 }
-	assert (IsEffective(InfDiv));
-	assert (GCD(Numerator(K) + Denominator(K), InfDiv) eq DivisorGroup(Curve(D1))!0);
-	//E1, n1 := BestMoveAway(D1, InfDiv : Weierstrass);
-	E1, n1 := BestMoveAway(D1, InfDiv);
-	assert(IsLinearlyEquivalent(n1*D1, E1));
-	vprint Debug, 2: "D1 moved away from InfDiv";
-	E2, n2 := BestMoveAway(D2, InfDiv + Numerator(E1) + Denominator(E1));
-	//E2, n2 := BestMoveAway(D2, Numerator(E1) + Denominator(E1));
-	assert(IsLinearlyEquivalent(n2*D2, E2));
-	vprint Debug, 2: "D2 moved away from D1 and InfDiv";
+  assert (IsEffective(InfDiv));
+  assert (GCD(Numerator(K) + Denominator(K), InfDiv) eq DivisorGroup(Curve(D1))!0);
+  // Need to move away from InfDiv because of bugs in Abel-Jacobi
+  // map on Riemann surface.
+//	E1, n1 := MoveAwayMultiple(D1, InfDiv);
+  try 
+    E1, n1 := MoveAwayMultiple(D1, InfDiv : Weierstrass, MultipleBound := 20);
+  catch e 
+    vprint Debug, 1: "No good multiple of D found. Swap D1 and D2.";
+    tmp := D2;
+    D2 := D1;
+    D1 := tmp;
+    E1, n1 := MoveAwayMultiple(D1, InfDiv : Weierstrass, MultipleBound := 20);
+  end try;
+
+  assert(IsLinearlyEquivalent(n1*D1, E1));
+  vprint Debug, 2: "D1 moved away from InfDiv";
+  E2, n2 := MoveAwayMultiple(D2, InfDiv + Numerator(E1) + Denominator(E1));
+  //E2, n2 := MoveAwayMultiple(D2, Numerator(E1) + Denominator(E1));
+  assert(IsLinearlyEquivalent(n2*D2, E2));
+  vprint Debug, 2: "D2 moved away from D1 and InfDiv";
   non_arch := NonArchimedeanPairing(E1, E2 : Precision := Precision);
-  //E1 := D1;	// This is just temporarily here because our MoveAway doesn't seem to work well for hyperelliptics.	
 
   C := Curve(E1);
   C_affine := AffinePatch(C, 1);
@@ -80,7 +111,7 @@ intrinsic NTHeightPairing(D1, D2, K, InfDiv : Precision := 50) -> FldReElt
         time arch_rds := -ArchimedeanPairing(E1, E2, K : Precision := Precision, RS := RS);
         */
   
-	return (arch-non_arch) / (n1*n2), arch, non_arch;
+  return (arch-non_arch) / (n1*n2), arch, non_arch;
 end intrinsic;
 
 intrinsic HeightPairing(D1::DivCrvElt, D2::DivCrvElt : Precision := 50) -> FldReElt
@@ -89,17 +120,17 @@ intrinsic HeightPairing(D1::DivCrvElt, D2::DivCrvElt : Precision := 50) -> FldRe
   D1 and D2.
   Precision is the output precision.
 }
-    require Degree(D1) eq 0 and Degree(D2) eq 0: 
-                    "The divisors need to have degree 0";
-    C := Curve(D1);
-    require Type(BaseRing(C)) eq FldRat:
-                    "Only implemented over the rationals";
-    K := CanonicalDivisor(C);
-    InfDiv := DivisorAtInfinity(C);
-    K2 := BetterMoveAway(K, InfDiv);
-    assert(IsCanonical(K2));
-    vprint Debug, 1: "Start NTHeightPairing";
-    return NTHeightPairing(D1, D2, K2, InfDiv : Precision := Precision);
+  require Degree(D1) eq 0 and Degree(D2) eq 0: 
+                  "The divisors need to have degree 0";
+  C := Curve(D1);
+  require Type(BaseRing(C)) eq FldRat:
+                  "Only implemented over the rationals";
+  K := CanonicalDivisor(C);
+  InfDiv := DivisorAtInfinity(C);
+  K2 := MoveAway(K, InfDiv);
+  assert(IsCanonical(K2));
+  vprint Debug, 1: "Start NTHeightPairing";
+  return NTHeightPairing(D1, D2, K2, InfDiv : Precision := Precision);
 end intrinsic;
 
 intrinsic Height(D::DivCrvElt : Precision := 50) -> FldReElt
@@ -108,6 +139,6 @@ intrinsic Height(D::DivCrvElt : Precision := 50) -> FldReElt
   Precision is the output precision.
 }
     
-    return HeightPairing(D, D : Precision := Precision);
+  return HeightPairing(D, D : Precision := Precision);
 
 end intrinsic;
