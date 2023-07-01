@@ -2,20 +2,14 @@
 
 ## Critical
 
-* Fix line 325 where StrongApproximation is imported from magma library using hardcoded path. This importing must be done dynamically. 
-  - This might be "impossible" todo dynamically. Rather I can write a make file that inserts that path dynamically when executed. 
-* non_archimedean_part.mag: This also imports with hardcoded paths, it must be dynamically done.
 * In AbelJacobiImageOfCanonicalDivisor, we move away the canonical divisor away from infinity. We should also move away from the singularities of the planar model, if any. 
   - Archimedean part of NT will work even if the planar model is singular, so we should continue to allow for that.
-  - It is unclear to us why we need to move away from infinity in general. Maybe this condition can be relaxed if infinity is smooth.
 
-## Important
 
-* Merge the Arch and NonArch code
 
 ## Luxury 
 
-* Test to see if support of E or D intersects Weierstrass locus, swap if needed, throw error if both intersect.
+* It is unclear to us why we need to move away from infinity in general. Maybe this condition can be relaxed if infinity is smooth. Apparently not, due to bugs in RS code.
 * Even if both E and D intersect the Weierstrass locus, we could evaluate the pairing using derivatives of theta functions ("L'Hopital"). 
   - Then there would be no constraints other than E,D disjoint.
 * Maybe we can get rid of the BetterMoveAway function by creating a canonical divisor that already is not supported at infinity or singularities.
@@ -31,3 +25,9 @@
 * Create and use a category called AugmentedPlaneCurve to make things cleaner? Or just use RiemannSurfaces? 
   - In any case, you better introduce checks to make sure the input is an augmented plane curve in most functions in archimedean_part
 
+## Done
+* Fix line 325 where StrongApproximation is imported from magma library using hardcoded path. This importing must be done dynamically. 
+  - This might be "impossible" todo dynamically. Rather I can write a make file that inserts that path dynamically when executed. 
+* non_archimedean_part.mag: This also imports with hardcoded paths, it must be dynamically done.
+* Merge the Arch and NonArch code
+* Test to see if support of E or D intersects Weierstrass locus, swap if needed, throw error if both intersect.
