@@ -83,12 +83,13 @@ intrinsic NTHeightPairing(D1, D2, K, InfDiv : Precision := 50) -> FldReElt
     tmp := D2;
     D2 := D1;
     D1 := tmp;
-    E1, n1 := MoveAwayMultiple(D1, InfDiv : Weierstrass, MultipleBound := 20);
+    E1, n1 := MoveAwayMultiple(D1, InfDiv : Weierstrass, MultipleBound := 50);
   end try;
 
   assert(IsLinearlyEquivalent(n1*D1, E1));
   vprint Debug, 2: "D1 moved away from InfDiv";
-  E2, n2 := MoveAwayMultiple(D2, InfDiv + Numerator(E1) + Denominator(E1));
+  E2, n2 := MoveAwayMultiple(D2, InfDiv + Numerator(E1) + Denominator(E1) 
+                                  : MultipleBound := 50);
   //E2, n2 := MoveAwayMultiple(D2, Numerator(E1) + Denominator(E1));
   assert(IsLinearlyEquivalent(n2*D2, E2));
   vprint Debug, 2: "D2 moved away from D1 and InfDiv";
