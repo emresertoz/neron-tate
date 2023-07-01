@@ -7,6 +7,8 @@ declare verbose Debug, 3;
 
 // TODO maybe you should create a new category "Augmented Plane Curve" and work with that instead of CrvPln which you ask for
 // on the other hand, why not work with RieSrf which has all the attributes you want?!
+//
+//
 
 intrinsic AugmentPlaneCurve(C::CrvPln : Precision:=50)
 {
@@ -196,17 +198,17 @@ intrinsic DivisorAtInfinity(C::CrvPln) -> DivCrvElt
 end intrinsic;
 
 
-forward BetterMoveAway; // TODO careful with this
+forward MoveAway; // TODO careful with this
 intrinsic AbelJacobiImageOfCanonicalDivisor(C::CrvPln) -> ModTupFldElt
 {
   Returns a complex g-dimensional row vector representing the image of the canonical point of the Abel Jacobi map associated to the given augmented curve.
 }
-    K := CanonicalDivisor(C);
-    InfDiv := DivisorAtInfinity(C);
-    // move divisor away from infinity
-    K2 := BetterMoveAway(K, InfDiv); // TODO careful
-    // You may want to move K away from the discriminant locus so that the AJ does not break
-    return AbelJacobiImageOfDivisor(C,K2);
+  K := CanonicalDivisor(C);
+  InfDiv := DivisorAtInfinity(C);
+  // move divisor away from infinity
+  K2 := MoveAway(K, InfDiv); // TODO careful
+  // You may want to move K away from the discriminant locus so that the AJ does not break
+  return AbelJacobiImageOfDivisor(C,K2);
 end intrinsic;
 
 intrinsic ThetaCharacteristics(C::CrvPln) -> SeqEnum
@@ -225,7 +227,7 @@ intrinsic StandardThetaCharacteristic(C::CrvPln : lowPrecision:=10) -> ModTupFld
   if assigned C`StandardThetaCharacteristic then
     return C`StandardThetaCharacteristic;
   end if;
-  print "Looking for the standard theta characteristic by trial and error, this can take some time...";
+  vprint Debug, 1: "Looking for the standard theta characteristic by trial and error, this can take some time...";
   tolerance:=10^-(lowPrecision/2); 
   normalizedTheta:=NormalizedRiemannTheta(C : lowPrecision:=lowPrecision);
   ptOnTheta:=RandomPointOnThetaDivisor(C);
@@ -237,7 +239,7 @@ intrinsic StandardThetaCharacteristic(C::CrvPln : lowPrecision:=10) -> ModTupFld
     if (err lt tolerance) then
       vprint Debug, 2: Sort(errs);
       C`StandardThetaCharacteristic:=thetaChar;
-      print "Found the standard theta characteristic.";
+      vprint Debug, 1: "Found the standard theta characteristic.";
       return thetaChar; // my sign for thetaChar is opposite that of vBHM
     end if;
   end for;
@@ -289,10 +291,10 @@ intrinsic ArchimedeanNeronPairing(C::CrvPln,D::DivCrvElt,E::DivCrvElt) -> FldCom
   CC:=ComplexField(RS`Prec);
   Hinv:=Inverse(ImMat(B));
   total:=0;
-  print "Computing the point decomposition of divisors.";
+  vprint Debug, 1: "Computing the point decomposition of divisors.";
   PointPairs1:=SplitIntoPairsOfPoints(D : Precision:=Precision);
   PointPairs2:=SplitIntoPairsOfPoints(E : Precision:=Precision);
-  print "Computing the Archimedean pairing of point pairs.";
+  vprint Debug, 1: "Computing the Archimedean pairing of point pairs.";
   cnt:=0; max:=#PointPairs1*#PointPairs2; // for vprint
   for PointPair1 in PointPairs1 do 
     for PointPair2 in PointPairs2 do 
@@ -316,14 +318,9 @@ intrinsic ArchimedeanNeronPairing(C::CrvPln,D::DivCrvElt,E::DivCrvElt) -> FldCom
 end intrinsic;
 
 
-/////////////////////////////////////////////
-/////////// Taken verbatim from code by vBHM
-/////////////////////////////////////////////
-
-
 // this might break
 
-import "/usr/local/magma/package/Geometry/RieSrf/infinitepoints.m" : StrongApproximation;
+//import "/usr/local/magma/package/Geometry/RieSrf/infinitepoints.m" : StrongApproximation;
 
 // This doesn't work at all because import expexts a literal string as path name!
 /* libraryRoot := GetLibraryRoot(); */
@@ -336,27 +333,40 @@ import "/usr/local/magma/package/Geometry/RieSrf/infinitepoints.m" : StrongAppro
 /* import packagePath : StrongApproximation; */
 
 
-// Improved move away D from E
-function BetterMoveAway(D, E : P := 0)
-	// Find some base point to use
-	if (Type(P) eq RngIntElt) and (P eq 0) then
-		for pl in Decomposition(D) do
-			if GCD(pl[1], Numerator(E) + Denominator(E)) eq (Parent(E)!0) then
-				P := pl[1];
-				break;
-			end if;
-		end for;
-		if (Type(P) eq RngIntElt) and (P eq 0) then
-			error "No base point found!";
-		end if;
-	end if;
-	L := [FunctionFieldPlace(Pl[1]) : Pl in Decomposition(E)];
-	M := [Pl[1] : Pl in Decomposition(E)];
-	P := FunctionFieldPlace(P);
-	for i in [1..#L] do
-		f := StrongApproximation(P, i, L);
-		D +:= Valuation(D,M[i]) * CurveDivisor(Curve(D), Divisor(f));
-	end for;
-	return D, 1;
+function MoveAway(D, E : bP := 0)
+  // Find a divisor linearly equivalent to D with disjoint support 
+  // from E. 
+  // bP is a base point 
+  if (Type(bP) eq RngIntElt) and (bP eq 0) then
+    for pl in Decomposition(D) do
+      if GCD(pl[1], Numerator(E) + Denominator(E)) eq (Parent(E)!0) then
+        bP := pl[1];
+        break;
+      end if;
+    end for;
+    if (Type(bP) eq RngIntElt) and (bP eq 0) then
+      error "No base point found!";
+    end if;
+  end if;
+  L := [FunctionFieldPlace(Pl[1]) : Pl in Decomposition(E)];
+  M := [Pl[1] : Pl in Decomposition(E)];
+  bP := FunctionFieldPlace(bP);
+  F := FunctionField(bP);
+
+  for i in [1..#L] do
+    Di := -&+Remove(L, i); 
+    while IsSpecial(Di) do
+      Di +:= bP;
+    end while; 
+    Bi := Basis(Di);
+    fi := Zero(F);
+    for j in [1..#L] do
+      Vij, fij := RiemannRochSpace( Di + L[j] );
+      Uij, gij := quo< Vij | sub< Vij | Bi@@fij > >;
+      fi +:= fij(Uij.1@@gij);
+    end for;
+    D +:= Valuation(D,M[i]) * CurveDivisor(Curve(D), Divisor(fi));
+  end for;
+  return D, 1;
 end function;
 
