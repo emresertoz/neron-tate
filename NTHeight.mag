@@ -143,3 +143,49 @@ intrinsic Height(D::DivCrvElt : Precision := 50) -> FldReElt
   return HeightPairing(D, D : Precision := Precision);
 
 end intrinsic;
+
+
+intrinsic HeightPairingMatrix(S::[DivCrvElt] : Precision := 50) -> AlgMat
+{Given a sequence of divisors D_i on a curve, this returns the matrix 
+  (<[D_i], [D_j]>), where < , > is the canonical height pairing}
+
+  require &and[Degree(D) eq 0 : D in S]:
+                  "The divisors need to have degree 0";
+  C := Curve(S[1]);
+  require Type(BaseRing(C)) eq FldRat:
+                  "Only implemented over the rationals";
+  n := #S;
+  if n eq 0 then
+    return Matrix(RealField(Precision), 0, []);
+  end if;
+
+  hs1 := [ Height(P : Precision := Precision) : P in S];
+  hs2 := [ [ HeightPairing(S[i] , S[j] : Precision := Precision) :
+                                        i in [1..j-1] ] : j in [2..n] ];
+  mat := [ (i eq j) select hs1[i] else
+          (i lt j) select hs2[j-1, i] else hs2[i-1,j] : i, j in [1..n] ];
+  return Matrix(n, mat);
+
+end intrinsic;
+
+
+
+intrinsic Regulator(S::[DivCrvElt] : Precision := 50) -> FldReElt, AlgMat
+{
+  The regulator of a sequence of classes of divisors of degree 0 on a curve.
+  Precision is the output precision.
+}
+  require &and[Degree(D) eq 0 : D in S]:
+                  "The divisors need to have degree 0";
+  C := Curve(S[1]);
+  require Type(BaseRing(C)) eq FldRat:
+                  "Only implemented over the rationals";
+  n := #S;
+  if n eq 0 then
+    return RealField(Precision)!0;
+  end if;
+  mat := HeightPairingMatrix(S : Precision := Precision);
+  return Determinant(mat), mat;
+
+end intrinsic;
+
