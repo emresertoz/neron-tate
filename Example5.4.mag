@@ -1,6 +1,4 @@
-Attach("archimedean_part.mag");
-Attach("non_archimedean_part.mag");
-Attach("NTHeight.mag");
+AttachSpec("spec");
 SetVerbose("Debug", 2);
 P2<x,y,z> := ProjectiveSpace(Rationals(),2);
 C := Curve(P2, 3*x^3*y + 5*y^4 + 5*x*y^2*z - 1953125*z^4);
