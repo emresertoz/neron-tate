@@ -1,4 +1,5 @@
-// Compute the Moore-Penrose pseudoinverse of a square matrix A.
+// Compute the Moore-Penrose pseudoinverse of a square matrix A
+// of rank=dim-1, where all row and column sums are 0
 function pseudoinverse(A)
   k := Nrows(A);
   assert k eq Ncols(A); // A must be square  
